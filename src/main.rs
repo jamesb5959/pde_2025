@@ -13,7 +13,6 @@ use tui::{
     Terminal,
 };
 
-// Quiz question with prompt, hint, and expected answer
 struct Question {
     prompt: &'static str,
     hint: &'static str,
