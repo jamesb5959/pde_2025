@@ -1,0 +1,8 @@
+[package]
+name = "pde"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tui = "0.18"                    # Compatible with Rust 1.75
+crossterm = "0.24"             # Compatible with Rust 1.75
