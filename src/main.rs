@@ -1,4 +1,4 @@
-use std::{io, fs::OpenOptions, io::Write};
+use std::{fs::OpenOptions, io, io::Write};
 use crossterm::{
     event::{self, Event, KeyCode},
     execute,
@@ -37,60 +37,62 @@ impl App {
     fn new() -> Self {
         let questions = vec![
             Question {
-                prompt: "1. What command starts VirtualBox in the debug build?", 
-                hint: "Hint: From the debug/bin directory, run ./VirtualBox", 
+                prompt: "1. What command starts VirtualBox in the debug build?",
+                hint: "Hint: From the debug/bin directory, run ./VirtualBox",
                 answer: "./VirtualBox",
             },
             Question {
-                prompt: "2. How do you attach gdb to the VM process?", 
-                hint: "Hint: sudo gdb -p $(pidof VirtualBoxVM)", 
+                prompt: "2. How do you attach gdb to the VM process?",
+                hint: "Hint: sudo gdb -p $(pidof VirtualBoxVM)",
                 answer: "sudo gdb -p $(pidof VirtualBoxVM)",
             },
             Question {
-                prompt: "3. Which GDB directive ignores SIGTRAP?", 
-                hint: "Hint: handle SIGTRAP nostop noprint nopass", 
+                prompt: "3. Which GDB directive ignores SIGTRAP?",
+                hint: "Hint: handle SIGTRAP nostop noprint nopass",
                 answer: "handle SIGTRAP nostop noprint nopass",
             },
             Question {
-                prompt: "4. How set the solib-search-path in GDB?", 
-                hint: "Hint: set solib-search-path /home/pde/.../debug/bin:/home/pde/.../debug/bin/components", 
+                prompt: "4. How set the solib-search-path in GDB?",
+                hint: "Hint: set solib-search-path /home/pde/.../debug/bin:/home/pde/.../debug/bin/components",
                 answer: "set solib-search-path /home/pde/Downloads/VirtualBox-7.0.10/out/linux.amd64/debug/bin:/home/pde/Downloads/VirtualBox-7.0.10/out/linux.amd64/debug/bin/components",
             },
             Question {
-                prompt: "5. What breakpoint filters VLAN IDs >=4096?", 
-                hint: "Hint: break virtioNetR3CtrlVlan if uVlanId >= 4096", 
+                prompt: "5. What breakpoint filters VLAN IDs >=4096?",
+                hint: "Hint: break virtioNetR3CtrlVlan if uVlanId >= 4096",
                 answer: "break virtioNetR3CtrlVlan if uVlanId >= 4096",
             },
             Question {
-                prompt: "6. How do you continue execution in GDB?", 
-                hint: "Hint: c", 
+                prompt: "6. How do you continue execution in GDB?",
+                hint: "Hint: c",
                 answer: "c",
             },
             Question {
-                prompt: "7. Which GDB command shows locals?", 
-                hint: "Hint: info locals", 
+                prompt: "7. Which GDB command shows locals?",
+                hint: "Hint: info locals",
                 answer: "info locals",
             },
             Question {
-                prompt: "8. How remove the virtio-net module in the VM?", 
-                hint: "Hint: sudo rmmod virtio-net", 
+                prompt: "8. How remove the virtio-net module in the VM?",
+                hint: "Hint: sudo rmmod virtio-net",
                 answer: "sudo rmmod virtio-net",
             },
             Question {
-                prompt: "9. How insert the exploit module exploit.ko?", 
-                hint: "Hint: sudo insmod exploit.ko", 
+                prompt: "9. How insert the exploit module exploit.ko?",
+                hint: "Hint: sudo insmod exploit.ko",
                 answer: "sudo insmod exploit.ko",
             },
             Question {
-                prompt: "10. What do you expect after loading exploit.ko?", 
-                hint: "Hint: The GDB breakpoint at virtioNetR3CtrlVlan should hit and info locals shows uVlanId>=4096", 
+                prompt: "10. What do you expect after loading exploit.ko?",
+                hint: "Hint: The GDB breakpoint at virtioNetR3CtrlVlan should hit and info locals shows uVlanId>=4096",
                 answer: "breakpoint hit and info locals",
             },
         ];
+
         let initial = Spans::from(Span::styled(
             questions[0].prompt,
             Style::default().fg(Color::Magenta),
         ));
+
         Self {
             questions,
             current: 0,
@@ -104,43 +106,64 @@ impl App {
     fn process_input(&mut self) {
         let trimmed = self.input.trim();
         if trimmed.is_empty() {
+            // ignore empty submissions
+            self.input.clear();
             return;
         }
+
         let q = &self.questions[self.current];
+
+        // handle hint command
         if trimmed.eq_ignore_ascii_case("hint") {
             self.history.push(Spans::from(Span::raw(q.hint)));
-        } else if trimmed == q.answer {
-            self.history.push(Spans::from(Span::styled(
-                "Correct!",
-                Style::default().fg(Color::Green),
-            )));
-            self.current += 1;
-            if self.current < self.questions.len() {
-                let next = self.questions[self.current].prompt;
-                self.history.push(Spans::from(Span::styled(
-                    next,
-                    Style::default().fg(Color::Magenta),
-                )));
+        } else {
+            // echo the user's answer, colored by correctness
+            let answer_span = if trimmed == q.answer {
+                Span::styled(self.input.clone(), Style::default().fg(Color::Green))
             } else {
+                Span::styled(self.input.clone(), Style::default().fg(Color::Red))
+            };
+            self.history.push(Spans::from(answer_span));
+
+            // feedback and progression
+            if trimmed == q.answer {
+                // correct
                 self.history.push(Spans::from(Span::styled(
-                    "Quiz complete!",
-                    Style::default().fg(Color::Yellow),
+                    "Correct!",
+                    Style::default().fg(Color::Green),
+                )));
+                self.current += 1;
+                if self.current < self.questions.len() {
+                    let next_prompt = self.questions[self.current].prompt;
+                    self.history.push(Spans::from(Span::styled(
+                        next_prompt,
+                        Style::default().fg(Color::Magenta),
+                    )));
+                } else {
+                    self.history.push(Spans::from(Span::styled(
+                        "Completed!",
+                        Style::default().fg(Color::Yellow),
+                    )));
+                }
+            } else {
+                // incorrect
+                self.history.push(Spans::from(Span::styled(
+                    "Incorrect, try again or type 'hint'",
+                    Style::default().fg(Color::Red),
                 )));
             }
-        } else {
-            self.history.push(Spans::from(Span::styled(
-                "Incorrect, try again or type 'hint'",
-                Style::default().fg(Color::Red),
-            )));
         }
+
+        // record to file
         append_to_file(&self.input);
+        // reset input and scroll
         self.input.clear();
         self.scroll = 0;
     }
 }
 
 fn append_to_file(line: &str) {
-    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open("quiz_history.txt") {
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open("history.txt") {
         let _ = writeln!(f, "{}", line);
     }
 }
@@ -152,10 +175,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     let mut app = App::new();
+
     let res = run_app(&mut terminal, &mut app);
+
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
+
     if let Err(e) = res {
         eprintln!("Error: {:?}", e);
     }
@@ -176,14 +202,16 @@ fn run_app<B: tui::backend::Backend>(
                 .split(size);
 
             let history = Paragraph::new(app.history.clone())
-                .block(Block::default().title("Quiz").borders(Borders::ALL))
+                .block(Block::default().title("Questions").borders(Borders::ALL))
                 .scroll((app.scroll, 0));
             f.render_widget(history, chunks[0]);
 
             let input = Paragraph::new(app.input.as_ref())
-                .block(Block::default().title("Answer or 'hint'").borders(Borders::ALL))
+                .block(Block::default().title("Answer or 'hint' or Esc+q to quit").borders(Borders::ALL))
                 .style(Style::default().fg(Color::Yellow));
             f.render_widget(input, chunks[1]);
+
+            // position cursor in input box
             f.set_cursor(
                 chunks[1].x + app.input.len() as u16 + 1,
                 chunks[1].y + 1,
@@ -193,12 +221,32 @@ fn run_app<B: tui::backend::Backend>(
         if event::poll(std::time::Duration::from_millis(200))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Char(c) => app.input.push(c),
-                    KeyCode::Backspace => { app.input.pop(); }
-                    KeyCode::Enter => { app.process_input(); }
-                    KeyCode::Up => { if app.scroll > 0 { app.scroll -= 1; } }
-                    KeyCode::Down => { app.scroll += 1; }
-                    KeyCode::Char('q') => return Ok(()),
+                    // quit on 'q' in Normal mode
+                    KeyCode::Char('q') if matches!(app.input_mode, InputMode::Normal) => {
+                        return Ok(());
+                    }
+                    KeyCode::Esc => {
+                        // switch to Normal mode (for quitting)
+                        app.input_mode = InputMode::Normal;
+                    }
+                    // typing only in Insert mode
+                    KeyCode::Char(c) if matches!(app.input_mode, InputMode::Insert) => {
+                        app.input.push(c);
+                    }
+                    KeyCode::Backspace if matches!(app.input_mode, InputMode::Insert) => {
+                        app.input.pop();
+                    }
+                    KeyCode::Enter if matches!(app.input_mode, InputMode::Insert) => {
+                        app.process_input();
+                    }
+                    KeyCode::Up => {
+                        if app.scroll > 0 {
+                            app.scroll -= 1;
+                        }
+                    }
+                    KeyCode::Down => {
+                        app.scroll += 1;
+                    }
                     _ => {}
                 }
             }
