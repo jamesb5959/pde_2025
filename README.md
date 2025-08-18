@@ -1,4 +1,3 @@
-
 ## Setup
 
 1. Install dependencies:  
@@ -12,7 +11,7 @@
    ```
 
    This will:
-   - Build the Rust TUI app with Cargo  
+   - Build the Rust Question code with Cargo  
    - Extract the VirtualBox debug source tree  
    - Extract the VM images  
    - Run `vboxdrv.sh setup` to prepare the VirtualBox kernel module  
@@ -47,4 +46,4 @@ This presents a sequence of **questions** with hints, showing:
 ### Controls
 - Type your answer and press **Enter**  
 - Type `hint` to see a clue  
-- Press **Esc** then `q` to quit  
+- Press **Esc** then `q` to quit
